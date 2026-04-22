@@ -1,0 +1,36 @@
+[project]
+name = "menu-agent-api"
+version = "0.1.0"
+description = "오늘 뭐 먹지? — 메뉴 추천 에이전트 API"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "anthropic>=0.40",
+    "psycopg[binary]>=3.2",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "httpx>=0.27",
+    "qdrant-client>=1.12",
+    "fastembed>=0.4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint.per-file-ignores]
+# tools_registry 는 <student-fill> 블록마다 import 가 파일 중간에 섞여야
+# 세션별 "tool 하나씩 추가" 서사가 한 파일 안에서 드러난다.
+"app/agent/tools_registry.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

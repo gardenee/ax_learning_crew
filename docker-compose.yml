@@ -1,0 +1,129 @@
+services:
+  web:
+    build: ./apps/web
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    env_file: .env
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      WEB_HMR_CLIENT_PORT: "${WEB_PORT:-3000}"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+  api:
+    build: ./apps/api
+    ports:
+      - "${API_PORT:-8000}:8000"
+    env_file: .env
+    environment:
+      WATCHFILES_FORCE_POLLING: "true"
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      qdrant:
+        condition: service_started
+      qdrant-init:
+        condition: service_completed_successfully
+
+  migrate:
+    image: postgres:16
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: app
+    volumes:
+      - ./infra/db/migrations:/migrations:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -eu
+        echo "[migrate] ensuring schema_migrations table exists"
+        psql -h postgres -U app -d menu_agent -v ON_ERROR_STOP=1 -c \
+          "CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now());"
+        for f in /migrations/*.sql; do
+          v=$$(basename "$$f" .sql)
+          exists=$$(psql -h postgres -U app -d menu_agent -tAc \
+            "SELECT 1 FROM schema_migrations WHERE version='$$v'")
+          if [ "$$exists" = "1" ]; then
+            echo "[migrate] skip $$v"
+          else
+            echo "[migrate] apply $$v"
+            psql -h postgres -U app -d menu_agent -v ON_ERROR_STOP=1 -f "$$f"
+            psql -h postgres -U app -d menu_agent -v ON_ERROR_STOP=1 -c \
+              "INSERT INTO schema_migrations (version) VALUES ('$$v') ON CONFLICT DO NOTHING"
+          fi
+        done
+        echo "[migrate] done"
+    restart: "no"
+
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: menu_agent
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/db/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d menu_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  qdrant-init:
+    image: curlimages/curl:latest
+    depends_on:
+      qdrant:
+        condition: service_started
+    volumes:
+      - ./data/qdrant_snapshots:/snapshots:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "[qdrant-init] waiting for Qdrant..."
+        until curl -sf http://qdrant:6333/readyz > /dev/null; do sleep 1; done
+        for c in restaurants menus; do
+          if curl -sf "http://qdrant:6333/collections/$${c}" > /dev/null 2>&1; then
+            echo "[qdrant-init] $${c}: already exists, skip"
+          else
+            echo "[qdrant-init] $${c}: restoring from /snapshots/$${c}.snapshot ..."
+            curl -sf -X POST "http://qdrant:6333/collections/$${c}/snapshots/upload?priority=snapshot" \
+              -F "snapshot=@/snapshots/$${c}.snapshot" > /dev/null
+            echo "[qdrant-init] $${c}: restored"
+          fi
+        done
+        echo "[qdrant-init] done"
+    restart: "no"
+
+  adminer:
+    image: adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
+    name: ax_shared_pg
+  qdrant_data:
+    name: ax_shared_qdrant
