@@ -18,6 +18,12 @@ self-reflection / guardrail 계층.
 
 `ask_user` 의 `should_break_loop` 와 대칭되는 패턴 — ask_user 는 form 을
 yield 한 뒤 루프 종료, evaluate 는 alert 만 yield 하고 루프는 이어간다.
+
+──────────────────────────────────────────────────────────────
+완성본. `self_check` 토글로 껐다 켤 수 있습니다 (evaluate_response + EVAL_RULES).
+도전 과제: judge 프롬프트(`JUDGE_SYSTEM_PROMPT`)를 튜닝해 위반 탐지를 날카롭게.
+추가 도전: rule-based 체크를 더 얹어보세요 (예: budget_max 숫자 비교).
+──────────────────────────────────────────────────────────────
 """
 
 from __future__ import annotations

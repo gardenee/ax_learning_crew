@@ -41,6 +41,7 @@ export type AgentEvent =
       tool: string;
       state: 'start' | 'done';
       input?: Record<string, unknown>;
+      result?: unknown;
     }
   | { type: 'done'; debug_info: DebugInfo }
   | { type: 'error'; message: string }

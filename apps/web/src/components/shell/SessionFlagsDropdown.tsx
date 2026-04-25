@@ -27,9 +27,6 @@ export function SessionFlagsDropdown({ flags, onToggle }: Props) {
     };
   }, [open]);
 
-  const behaviorSpecs = FLAG_SPECS.filter((s) => s.group !== 'tool');
-  const toolSpecs = FLAG_SPECS.filter((s) => s.group === 'tool');
-
   const renderChip = (spec: (typeof FLAG_SPECS)[number]) => {
     const active = flags[spec.key];
     return (
@@ -63,11 +60,8 @@ export function SessionFlagsDropdown({ flags, onToggle }: Props) {
 
       {open && (
         <div className="flags__menu" role="menu">
-          <div className="flags__head">동작</div>
-          <div className="flags__chips">{behaviorSpecs.map(renderChip)}</div>
-
           <div className="flags__head">Tool</div>
-          <div className="flags__chips">{toolSpecs.map(renderChip)}</div>
+          <div className="flags__chips">{FLAG_SPECS.map(renderChip)}</div>
 
           <div className="flags__hint">
             {FLAG_SPECS.map((spec) => (

@@ -3,6 +3,11 @@
 에이전트가 *"해산물 싫어"*, *"어제 OO국밥 별로였어"* 같은 명시적 선호 발화를
 감지하면 호출한다. 서비스 계층의 `record_preference` 로 `preference_signals`
 테이블에 한 건을 쌓는다.
+
+──────────────────────────────────────────────────────────────
+크루원 수정 포인트가 보이면 `# [student-edit]` 주석을 찾아가세요.
+토글은 `tool_memory` 하나로 read/write 둘 다 묶어서 끕니다.
+──────────────────────────────────────────────────────────────
 """
 
 from __future__ import annotations
@@ -40,6 +45,9 @@ def handle(
             restaurant_name=restaurant_name,
         )
 
+    # [student-edit] LLM 에게 돌려줄 응답 형태를 바꿔 보세요.
+    # 예: 기록 실패 시 어떻게 대응할지 / action 외에 "message" 한 줄을 추가해
+    #     LLM 이 사용자에게 "'싫어함'으로 기록해둘게요" 라고 말하기 쉽게 만들기 등.
     return {
         "ok": True,
         "action": result["action"],

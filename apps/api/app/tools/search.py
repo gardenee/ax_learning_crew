@@ -2,11 +2,30 @@
 
 벡터 검색/필터/rerank 로직은 `app.services.retrieval.search_service` 에 있고,
 이 파일은 결과를 에이전트가 인용하기 좋은 형태로 포맷팅하는 얇은 어댑터다.
+
+──────────────────────────────────────────────────────────────
+크루원 수정 포인트가 많은 tool 입니다. `# [student-edit]` 여러 곳을 찾아보세요.
+토글: `tool_search` — search_menus 와 함께 묶여 있습니다.
+──────────────────────────────────────────────────────────────
 """
 
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
+
+
+def _build_map_url(name: str | None, lat: float | None, lng: float | None) -> str | None:
+    """식당 이름 + 좌표로 Kakao Map deep link 생성.
+
+    좌표가 있으면 정확한 핀 링크, 없으면 이름 검색 URL 로 fallback.
+    """
+    if not name:
+        return None
+    name_q = quote(str(name), safe="")
+    if lat is not None and lng is not None:
+        return f"https://map.kakao.com/link/map/{name_q},{lat},{lng}"
+    return f"https://map.kakao.com/?q={name_q}"
 
 
 def handle(
@@ -71,6 +90,11 @@ def handle(
         if price_min or price_max:
             price_range = f"{price_min or ''}~{price_max or ''}".strip("~") or None
 
+        # [student-edit] 후보 dict 에 들어갈 필드를 선택하세요.
+        # 이 필드들이 LLM 에게 보내질 context 가 됩니다.
+        # 넣을수록 근거를 풍부하게 인용할 수 있지만 context 가 무거워집니다.
+        # 예: review_summary 를 잘라 보낸다 / menus 필드를 추가한다 /
+        #     opening_hours 를 넣는다 / 전화번호를 뺀다 등.
         entry = {
             "restaurant_id": hit.get("restaurant_id"),
             "name": hit.get("name"),
@@ -84,8 +108,12 @@ def handle(
             "rating": hit.get("rating"),
             "review_summary": hit.get("review_summary"),
             "price_range": price_range,
+            "map_url": _build_map_url(hit.get("name"), hit.get("lat"), hit.get("lng")),
         }
         if "rerank_score" in hit:
+            # [student-edit] rerank 결과를 LLM 에게 어디까지 보여줄지 정하세요.
+            # rerank_components 는 신호별 세부 점수가 들어있어 디버깅에 좋지만
+            # LLM 이 점수에 과도 의존하게 될 수 있습니다.
             entry["rerank_score"] = hit["rerank_score"]
             entry["rerank_components"] = hit.get("rerank_components")
         candidates.append(entry)

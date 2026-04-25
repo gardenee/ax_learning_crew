@@ -370,12 +370,20 @@ def search_menus(
         query_filter=query_filter,
     )
 
+    # menus 컬렉션은 tags/dish_types payload 가 없어서 _build_query_filter 의
+    # exclude_keywords 매칭이 안 걸린다. 메뉴 이름 substring 으로 직접 거른다.
+    excluded_kw: list[str] = []
+    if filter:
+        excluded_kw = [str(k).strip() for k in (filter.get("exclude_keywords") or []) if str(k).strip()]
+
     # 같은 메뉴명 dedupe — 최고 점수 하나만 대표로, 나머지는 available_at 으로 집계
     by_name: dict[str, dict[str, Any]] = {}
     for hit in response.points:
         p = dict(hit.payload or {})
         name = (p.get("name") or "").strip()
         if not name:
+            continue
+        if excluded_kw and any(kw in name for kw in excluded_kw):
             continue
         score = float(hit.score)
         entry = by_name.get(name)

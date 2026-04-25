@@ -18,10 +18,14 @@ import { ChipsInput } from '../inputs/ChipsInput';
 import { SelectInput } from '../inputs/SelectInput';
 import { SubmitButton } from '../inputs/SubmitButton';
 
+// 단일 block 을 type 에 따라 dispatch.
+// 새 block 타입이 생기면 이 switch 한 군데에 case 를 추가하면 된다.
+// 폼 관련 input block 은 반드시 FormsProvider 안에서 렌더되어야 한다.
 type Props = {
   block: Block;
   onQuickAction?: (action: QuickAction) => void;
   sessionId?: string | null;
+  // 과거 대화 복원 턴인지 — true 면 클릭 가능한 block 을 disabled 로 렌더한다.
   readonly?: boolean;
 };
 

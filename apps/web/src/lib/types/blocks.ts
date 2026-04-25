@@ -12,6 +12,7 @@ export type ToolStatusBlock = {
   tool: string;
   state: 'running' | 'done';
   input?: Record<string, unknown>;
+  result?: unknown; // tool 실행 결과 — 학습용으로 펼쳐서 보여준다.
   collapsed?: boolean;
 };
 
@@ -37,6 +38,8 @@ export type RestaurantSummary = {
   distance_m?: number;
   budget_label?: string;
   estimated_meal_minutes?: number;
+  map_url?: string; // 카카오맵 deep link (백엔드 candidate 에서 자동 생성)
+  image_url?: string; // (옵션) thumbnail — 데이터에 있을 때만
 };
 
 export type QuickAction = {

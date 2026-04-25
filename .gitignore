@@ -33,3 +33,5 @@ release/
 guide/
 scripts/
 .claude/
+# auto-archive of prompts/__init__.py (PostToolUse hook)
+.claude/prompt-history/

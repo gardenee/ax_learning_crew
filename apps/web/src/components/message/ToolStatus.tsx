@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import type { ToolStatusBlock } from '@/lib/types/blocks';
 import { IconCheck } from '../shell/icons';
 
-export function ToolStatus({ tool, state, input, collapsed }: ToolStatusBlock) {
+export function ToolStatus({ tool, state, input, result, collapsed }: ToolStatusBlock) {
   const label = state === 'running' ? '사용 중' : '완료';
   const hasArgs = !!input && Object.keys(input).length > 0;
+  const hasResult = result !== undefined && result !== null;
+  const expandable = hasArgs || hasResult;
 
   const initialOpen = state === 'running' ? !collapsed : collapsed === false;
   const [open, setOpen] = useState(initialOpen);
@@ -27,8 +29,8 @@ export function ToolStatus({ tool, state, input, collapsed }: ToolStatusBlock) {
   );
 
   return (
-    <div className={`tool tool--${state}${hasArgs && open ? ' tool--expanded' : ''}`}>
-      {hasArgs ? (
+    <div className={`tool tool--${state}${expandable && open ? ' tool--expanded' : ''}`}>
+      {expandable ? (
         <button
           type="button"
           className="tool__row tool__row--btn"
@@ -40,9 +42,30 @@ export function ToolStatus({ tool, state, input, collapsed }: ToolStatusBlock) {
       ) : (
         <div className="tool__row">{inner}</div>
       )}
-      {hasArgs && open && (
-        <pre className="tool__args">{JSON.stringify(input, null, 2)}</pre>
+      {expandable && open && (
+        <div className="tool__detail">
+          {hasArgs && (
+            <div className="tool__section tool__section--input">
+              <div className="tool__section-label">입력</div>
+              <pre className="tool__args">{JSON.stringify(input, null, 2)}</pre>
+            </div>
+          )}
+          {hasResult && (
+            <div className="tool__section tool__section--result">
+              <div className="tool__section-label">결과</div>
+              <pre className="tool__args tool__args--result">{prettyJSON(result)}</pre>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
+}
+
+function prettyJSON(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
 }

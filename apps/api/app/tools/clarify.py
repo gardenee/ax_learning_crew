@@ -17,6 +17,12 @@ LLM 이 보내는 `fields` 는 완벽하지 않을 수 있어 검증한다:
 - 알 수 없는 `kind` → `text` fallback
 - `value` 없는 option → 제거
 - 전부 무효하면 → 기본 text 필드 하나 삽입
+
+──────────────────────────────────────────────────────────────
+완성본. `tool_ask_user` 토글로 껐다 켤 수 있습니다.
+도전 과제: 새로운 input block 타입(예: slider, date_input)을 추가해 보세요.
+FE 쪽 렌더러 (`apps/web/src/components/blocks/`) 도 같이 건드려야 합니다.
+──────────────────────────────────────────────────────────────
 """
 
 from __future__ import annotations

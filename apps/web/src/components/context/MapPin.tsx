@@ -7,10 +7,10 @@ export function MapPin({ name, address, walk_minutes, distance_m }: MapPinBlock)
       <div className="map-pin__body">
         <div className="map-pin__name">{name}</div>
         {address && <div className="map-pin__address">{address}</div>}
-        {(walk_minutes !== undefined || distance_m !== undefined) && (
+        {(typeof walk_minutes === 'number' || typeof distance_m === 'number') && (
           <div className="map-pin__meta">
-            {walk_minutes !== undefined && <span>🚶 {walk_minutes}분</span>}
-            {distance_m !== undefined && <span>{distance_m}m</span>}
+            {typeof walk_minutes === 'number' && <span>🚶 {walk_minutes}분</span>}
+            {typeof distance_m === 'number' && <span>{distance_m}m</span>}
           </div>
         )}
       </div>

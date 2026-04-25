@@ -465,6 +465,25 @@ ul, ol { list-style: none; }
 }
 
 .tool--expanded { padding-bottom: 8px; }
+.tool__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.tool__section {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tool__section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  text-transform: uppercase;
+  padding-left: 2px;
+}
 .tool__args {
   margin: 0;
   padding: 8px 10px;
@@ -476,8 +495,12 @@ ul, ol { list-style: none; }
   color: var(--ink, #222);
   opacity: .85;
   white-space: pre;
-  overflow-x: auto;
+  overflow: auto;
   max-width: 640px;
+}
+/* 결과는 양이 많을 수 있으니 max-height 로 잘라 스크롤 */
+.tool__args--result {
+  max-height: 280px;
 }
 
 /* ==========================================================================
@@ -554,6 +577,14 @@ ul, ol { list-style: none; }
   font-size: 11.5px; font-weight: 600;
   padding: 3px 10px; border-radius: 999px;
 }
+.rec__map-link {
+  font-size: 14px;
+  text-decoration: none;
+  opacity: 0.55;
+  transition: opacity 120ms;
+  cursor: pointer;
+}
+.rec__map-link:hover { opacity: 1; }
 
 .rec__meta {
   display: flex; gap: 14px; flex-wrap: wrap;

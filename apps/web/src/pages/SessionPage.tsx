@@ -436,7 +436,7 @@ function reduceBlocks(blocks: Block[], event: AgentEvent): Block[] {
         };
         return [...blocks, next];
       }
-      return collapseReasoning(flipLatestToolStatus(blocks, event.tool));
+      return collapseReasoning(flipLatestToolStatus(blocks, event.tool, event.result));
     }
 
     case 'reasoning_start': {
@@ -482,12 +482,12 @@ function hasActiveBlock(blocks: Block[]): boolean {
   return false;
 }
 
-function flipLatestToolStatus(blocks: Block[], tool: string): Block[] {
+function flipLatestToolStatus(blocks: Block[], tool: string, result?: unknown): Block[] {
   for (let i = blocks.length - 1; i >= 0; i--) {
     const b = blocks[i];
     if (b.type === 'tool_status' && b.tool === tool && b.state === 'running') {
       const next = blocks.slice();
-      next[i] = { ...b, state: 'done', collapsed: true };
+      next[i] = { ...b, state: 'done', collapsed: true, result };
       return next;
     }
   }

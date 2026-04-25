@@ -21,6 +21,7 @@ class SessionFlags(BaseModel):
 
     remember_history: bool = True
     self_check: bool = True
+    gen_ui: bool = True
     tool_memory: bool = True
     tool_search: bool = True
     tool_weather: bool = True

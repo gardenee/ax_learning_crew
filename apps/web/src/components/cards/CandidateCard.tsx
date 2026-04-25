@@ -142,16 +142,32 @@ export function CandidateCard({
       <div className="rec__head">
         <span className="rec__rank">{rank}</span>
         <h3 className="rec__name">{restaurant.name}</h3>
+        {(() => {
+          const url = restaurant.map_url
+            || (restaurant.name ? `https://map.kakao.com/?q=${encodeURIComponent(restaurant.name)}` : null);
+          return url ? (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rec__map-link"
+              title="지도에서 보기"
+              aria-label="지도에서 보기"
+            >
+              🗺️
+            </a>
+          ) : null;
+        })()}
         <span className="rec__cat">{restaurant.category}</span>
       </div>
 
       <div className="rec__meta">
-        {(restaurant.walk_minutes != null || restaurant.distance_m != null) && (
+        {(typeof restaurant.walk_minutes === 'number' || typeof restaurant.distance_m === 'number') && (
           <span>
             <IconWalk />
-            {restaurant.walk_minutes != null && `도보 ${restaurant.walk_minutes}분`}
-            {restaurant.walk_minutes != null && restaurant.distance_m != null && ' · '}
-            {restaurant.distance_m != null && `${restaurant.distance_m}m`}
+            {typeof restaurant.walk_minutes === 'number' && `도보 ${restaurant.walk_minutes}분`}
+            {typeof restaurant.walk_minutes === 'number' && typeof restaurant.distance_m === 'number' && ' · '}
+            {typeof restaurant.distance_m === 'number' && `${restaurant.distance_m}m`}
           </span>
         )}
         {restaurant.budget_label && (

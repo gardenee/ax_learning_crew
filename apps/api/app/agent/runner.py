@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import uuid
 from dataclasses import dataclass, field
 from typing import Iterator
@@ -23,6 +24,14 @@ from app.core.config import settings
 from app.core.llm_client import get_client
 
 logger = logging.getLogger(__name__)
+
+# 일부 모델이 native tool_use 대신 텍스트 안에 XML 형 tool 호출 ("<function_calls><invoke...>")
+# 을 흘리는 경우가 있다. 사용자 화면 노출 + 다음 턴 history 오염 양쪽 다 막기 위해 server 단에서 제거.
+_XML_TOOL_LEAK_RE = re.compile(r"<function_calls\b[^>]*>.*?</function_calls\s*>\s*", re.DOTALL)
+
+
+def _strip_tool_call_xml(text: str) -> str:
+    return _XML_TOOL_LEAK_RE.sub("", text).strip()
 
 
 @dataclass
@@ -46,6 +55,7 @@ def run_agent_stream(session: AgentSession, user_input: dict) -> Iterator[dict]:
         session.messages = []
 
     self_check_enabled = flags.get("self_check", True)
+    gen_ui_enabled = flags.get("gen_ui", True)
     system_prompt = SYSTEM_PROMPT if self_check_enabled else BASE_SYSTEM_PROMPT
 
     tool_definitions = _filter_tools_by_flags(TOOL_DEFINITIONS, flags, self_check_enabled)
@@ -63,8 +73,10 @@ def run_agent_stream(session: AgentSession, user_input: dict) -> Iterator[dict]:
 
         # text 를 stop_reason 에 따라 다르게 방출:
         # - tool_use → reasoning_*
-        # - end_turn → BlockStreamParser 로 JSONL/text 파싱 (사용자 향 응답)
-        yield from _emit_text_events(final)
+        # - end_turn (gen_ui ON)  → BlockStreamParser 로 JSONL/text 자동 분기
+        # - end_turn (gen_ui OFF) → JSONL 파싱 안 하고 통째 message 한 덩어리로 회수
+        #                            (세션 1~4 는 plain text 만 — LLM 이 block 을 흉내내도 텍스트로 본다)
+        yield from _emit_text_events(final, gen_ui_enabled=gen_ui_enabled)
 
         # assistant 메시지를 히스토리에 기록
         session.messages.append({
@@ -81,14 +93,19 @@ def run_agent_stream(session: AgentSession, user_input: dict) -> Iterator[dict]:
                     continue
 
                 logger.info(f"Tool call: {block.name}")
-                yield {
-                    "type": "tool_status",
-                    "tool": block.name,
-                    "state": "start",
-                    "input": block.input,
-                }
+                blocked = block.name not in allowed_tool_names
 
-                if block.name not in allowed_tool_names:
+                # 차단된 tool 은 UI 에 호출 표시를 띄우지 않는다 — 토글 OFF 의 의도를 그대로 보이기 위해.
+                # (단 history 에는 tool_use + error tool_result 가 그대로 들어가 다음 턴 LLM 이 인지.)
+                if not blocked:
+                    yield {
+                        "type": "tool_status",
+                        "tool": block.name,
+                        "state": "start",
+                        "input": block.input,
+                    }
+
+                if blocked:
                     logger.warning(
                         "blocked tool_use %s — not in allowed set for this request", block.name
                     )
@@ -103,9 +120,10 @@ def run_agent_stream(session: AgentSession, user_input: dict) -> Iterator[dict]:
                     "tool": block.name,
                     "input": block.input,
                     "output_preview": str(result)[:200],
+                    "blocked": blocked,
                 })
 
-                # 세션 6: search_restaurants 결과의 restaurant_id 를 세션에 누적. 
+                # 세션 6: search_restaurants 결과의 restaurant_id 를 세션에 누적.
                 # "LLM 이 지어낸 식당" 을 rule-based 로 걸러낸다.
                 if block.name == "search_restaurants" and isinstance(result, dict):
                     for cand in result.get("candidates") or []:
@@ -113,7 +131,13 @@ def run_agent_stream(session: AgentSession, user_input: dict) -> Iterator[dict]:
                         if isinstance(pid, str) and pid:
                             session.known_place_ids.add(pid)
 
-                yield {"type": "tool_status", "tool": block.name, "state": "done"}
+                if not blocked:
+                    yield {
+                        "type": "tool_status",
+                        "tool": block.name,
+                        "state": "done",
+                        "result": result,
+                    }
 
                 # 세션 5: ask_user 는 input block 묶음을 반환하고 루프를 끊는다.
                 if (
@@ -169,7 +193,8 @@ _TOOL_GROUPS: dict[str, frozenset[str]] = {
     "tool_weather":  frozenset({"get_weather"}),
     "tool_landmark": frozenset({"get_landmark"}),
     "tool_travel":   frozenset({"estimate_travel_time"}),
-    "tool_ask_user": frozenset({"ask_user"}),
+    # ask_user 는 gen_ui 의 sub-feature — 별도 토글 없이 gen_ui ON/OFF 를 따라간다.
+    # `_filter_tools_by_flags` 에서 gen_ui OFF 면 ask_user 자동 제외.
 }
 
 
@@ -180,6 +205,10 @@ def _filter_tools_by_flags(
 
     LLM 입장에서 tool 이 아예 존재하지 않는 상태가 되므로 hallucinated 호출도
     발생하지 않는다.
+
+    의존 관계: `ask_user` 는 input block (form) 을 emit 하므로 `gen_ui` OFF 면
+    의미 없음 — `gen_ui` 가 master, `tool_ask_user` 는 sub. gen_ui OFF 면 ask_user
+    도 자동 제외.
     """
     excluded: set[str] = set()
     if not self_check_enabled:
@@ -187,6 +216,9 @@ def _filter_tools_by_flags(
     for flag_key, tool_names in _TOOL_GROUPS.items():
         if not flags.get(flag_key, True):
             excluded |= tool_names
+    # ask_user 는 gen_ui 따라감 — gen_ui ON 이면 자동 활성, OFF 면 차단.
+    if not flags.get("gen_ui", True):
+        excluded.add("ask_user")
     return [t for t in definitions if t.get("name") not in excluded]
 
 
@@ -214,11 +246,12 @@ def _call_llm(client, messages: list[dict], system_prompt: str, tool_definitions
     return client.messages.create(**kwargs)
 
 
-def _emit_text_events(final) -> Iterator[dict]:
+def _emit_text_events(final, *, gen_ui_enabled: bool = True) -> Iterator[dict]:
     """final.content 의 text block 들을 stop_reason 에 따라 이벤트로 변환."""
     text = "".join(
         b.text for b in final.content if b.type == "text" and b.text
     )
+    text = _strip_tool_call_xml(text)
     if not text.strip():
         return
 
@@ -227,6 +260,13 @@ def _emit_text_events(final) -> Iterator[dict]:
         yield {"type": "reasoning_start", "id": rid}
         yield {"type": "reasoning_delta", "id": rid, "text": text}
         yield {"type": "reasoning_end", "id": rid}
+        return
+
+    if not gen_ui_enabled:
+        mid = f"m_{uuid.uuid4().hex[:8]}"
+        yield {"type": "message_start", "id": mid}
+        yield {"type": "message_delta", "id": mid, "text": text}
+        yield {"type": "message_end", "id": mid}
         return
 
     parser = BlockStreamParser()
@@ -256,7 +296,7 @@ def _format_user_input(user_input: dict) -> str:
 def _content_block_to_dict(block) -> dict:
     """Claude API content block을 직렬화 가능한 dict로 변환한다."""
     if block.type == "text":
-        return {"type": "text", "text": block.text}
+        return {"type": "text", "text": _strip_tool_call_xml(block.text)}
     if block.type == "tool_use":
         return {
             "type": "tool_use",

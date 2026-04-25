@@ -1,9 +1,18 @@
 """Tool 정의 및 핸들러 레지스트리.
 
-새 tool 추가 방법:
-1. `app/tools/<name>.py` 의 handle 함수를 구현
-2. `TOOL_DEFINITIONS` 에 Claude API tool 스키마(JSON Schema) 를 append
-3. `TOOL_HANDLERS` 에 name → handler 매핑을 추가
+────────────────────────────────────────────────────────────────
+크루원 안내: 이 파일은 **완성본** 으로 제공됩니다.
+각 세션의 핵심 학습 포인트(tool 로직과 프롬프트 설계) 에 집중하기 위해
+등록 boilerplate 는 건드리지 않아도 됩니다.
+
+새 tool 을 직접 추가할 때는 아래 패턴을 따르세요:
+1. `app/tools/<name>.py` 에 `handle(...)` 구현
+2. `TOOL_DEFINITIONS` 에 Claude API tool 스키마(JSON Schema) append
+3. `TOOL_HANDLERS` 에 name → handler 매핑 추가
+4. 해당 세션 프롬프트에 사용 규칙 서술
+5. (선택) `apps/web/src/lib/session-flags.ts` + `runner._TOOL_GROUPS` 에
+   토글 flag 추가
+────────────────────────────────────────────────────────────────
 """
 
 import logging
