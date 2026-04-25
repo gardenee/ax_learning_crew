@@ -6,17 +6,10 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
-class LocationInput(BaseModel):
-    alias: str | None = None
-    lat: float | None = None
-    lng: float | None = None
-
-
 class RecommendationConstraints(BaseModel):
     budget_max: int | None = None
     max_walk_minutes: int | None = None
     max_meal_minutes: int | None = None
-    mood_concepts: list[str] = []
 
 
 class SessionFlags(BaseModel):
@@ -38,11 +31,7 @@ class SessionFlags(BaseModel):
 
 class AgentRunRequest(BaseModel):
     session_id: UUID | None = None
-    mode: Literal["solo", "group", "project"] | None = None
-    initiated_by_user_id: UUID | None = None
     participant_ids: list[UUID] = []
-    project_id: UUID | None = None
-    location: LocationInput | None = None
     constraints: RecommendationConstraints | None = None
     user_message: str | None = None
     form_answers: dict | None = None

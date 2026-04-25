@@ -37,7 +37,6 @@ export type RestaurantSummary = {
   distance_m?: number;
   budget_label?: string;
   estimated_meal_minutes?: number;
-  group_fit_score?: number;
 };
 
 export type QuickAction = {

@@ -20,7 +20,6 @@ class RestaurantSummary(BaseModel):
     walk_minutes: int | None = None
     budget_label: str | None = None
     estimated_meal_minutes: int | None = None
-    group_fit_score: float | None = None
 
 
 class CompareAxis(BaseModel):

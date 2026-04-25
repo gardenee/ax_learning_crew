@@ -21,11 +21,9 @@ TOOL_DEFINITIONS.append(
     {
         "name": "get_user_memory",
         "description": (
-            "사용자/그룹의 저장된 선호(메뉴 likes/dislikes, 좋아/싫어하는 식당), "
+            "사용자의 저장된 선호(메뉴 likes/dislikes, 좋아/싫어하는 식당), "
             "제약(예산/이동시간/식사시간), 최근 식사 이력을 한 번에 조회한다. "
-            "사용자 맥락이 필요한 추천/결정 흐름에서는 **추천을 생성하기 전에** 반드시 호출한다. "
-            "그룹 세션(mode=group)이라면 전원의 user_ids 를 넘기고 group_id 도 함께 전달해 "
-            "groupConstraints(hardExcludes/softPreferences/hardExcludeRestaurants/...) 를 받아온다."
+            "사용자 맥락이 필요한 추천/결정 흐름에서는 **추천을 생성하기 전에** 반드시 호출한다."
         ),
         "input_schema": {
             "type": "object",
@@ -33,15 +31,7 @@ TOOL_DEFINITIONS.append(
                 "user_ids": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "조회할 사용자 UUID 목록 (solo 모드면 1명, group 모드면 전원)",
-                },
-                "group_id": {
-                    "type": "string",
-                    "description": "그룹 세션인 경우 그룹 ID (전원 merge 결과가 필요할 때)",
-                },
-                "project_id": {
-                    "type": "string",
-                    "description": "프로젝트 프리셋을 적용할 경우 프로젝트 ID",
+                    "description": "조회할 사용자 UUID 목록",
                 },
             },
             "required": ["user_ids"],
@@ -70,7 +60,7 @@ TOOL_DEFINITIONS.append(
             "properties": {
                 "user_id": {
                     "type": "string",
-                    "description": "선호를 기록할 사용자 UUID (solo 모드면 initiated_by_user_id)",
+                    "description": "선호를 기록할 사용자 UUID (participant_ids[0])",
                 },
                 "signal_type": {
                     "type": "string",
@@ -134,8 +124,8 @@ _FILTER_SCHEMA = {
             "items": {"type": "string"},
             "description": (
                 "제외할 식당 place_id 목록 (Google Place ID 문자열). "
-                "memory 의 recentMeals + dislikedRestaurants 를 합쳐 넣으면 "
-                "'어제 먹은 집 + 싫어하는 집' 이 한꺼번에 빠진다."
+                "memory.users[*].dislikedRestaurants 의 placeId 를 그대로 넣으면 "
+                "싫어하는 집이 후보에서 빠진다."
             ),
         },
         "near": {
@@ -225,7 +215,7 @@ TOOL_DEFINITIONS.append(
             "추천 응답에 나오는 식당 이름/카테고리/근거는 **반드시 이 tool 결과의 payload 에서 인용** 해야 한다 — "
             "LLM 이 아는 식당을 임의로 지어내지 말 것. "
             "memory 가 있으면 dislikes 는 filter.exclude_keywords 로(한국어 태그 매칭), "
-            "recentMeals 의 placeId 는 filter.exclude_restaurant_ids 로, "
+            "dislikedRestaurants 의 placeId 는 filter.exclude_restaurant_ids 로, "
             "likes 는 boost_concepts 로 넘겨 개인화한다. "
             "사용자가 장소 기반 제약('E13동 근처', '마곡역 5분 이내') 을 주면 먼저 get_landmark 로 좌표를 받아 "
             "filter.near={lat, lng, max_walk_minutes|radius_m} 으로 넣으면 geo_radius 로 후보가 좁혀진다 "

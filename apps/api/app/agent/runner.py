@@ -30,8 +30,6 @@ class AgentSession:
     """에이전트 세션. 추천 흐름 동안 유지된다."""
 
     session_id: UUID
-    mode: str = "solo"
-    initiated_by: UUID | None = None
     participant_ids: list[UUID] = field(default_factory=list)
     constraints: dict = field(default_factory=dict)
     messages: list[dict] = field(default_factory=list)
@@ -251,9 +249,6 @@ def _format_user_input(user_input: dict) -> str:
 
     if user_input.get("participant_ids"):
         parts.append(f"[참가자] {', '.join(user_input['participant_ids'])}")
-
-    if user_input.get("mode"):
-        parts.append(f"[모드] {user_input['mode']}")
 
     return "\n".join(parts) if parts else "점심 추천해줘"
 

@@ -2,16 +2,11 @@ import type { Block } from './blocks';
 
 export type AgentRunRequest = {
   session_id?: string | null;
-  mode?: 'solo' | 'group' | 'project';
-  initiated_by_user_id?: string;
   participant_ids?: string[];
-  project_id?: string;
-  location?: { alias?: string; lat?: number; lng?: number };
   constraints?: {
     budget_max?: number;
     max_walk_minutes?: number;
     max_meal_minutes?: number;
-    mood_concepts?: string[];
   };
   user_message?: string;
   form_answers?: Record<string, unknown>;

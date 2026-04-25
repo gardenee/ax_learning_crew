@@ -56,8 +56,6 @@ def agent_run(req: AgentRunRequest):
         persisted = load_messages(sid) if req.session_id else []
         session = AgentSession(
             session_id=sid,
-            mode=req.mode or "solo",
-            initiated_by=req.initiated_by_user_id,
             participant_ids=req.participant_ids,
             constraints=req.constraints.model_dump() if req.constraints else {},
             messages=persisted,
@@ -75,8 +73,6 @@ def agent_run(req: AgentRunRequest):
         upsert_session(
             session.session_id,
             title=(req.user_message or "").strip() or None,
-            mode=session.mode,
-            initiated_by_user_id=session.initiated_by,
         )
 
     user_input = {
@@ -84,7 +80,6 @@ def agent_run(req: AgentRunRequest):
         "form_answers": req.form_answers,
         "constraints": session.constraints,
         "participant_ids": [str(uid) for uid in req.participant_ids],
-        "mode": session.mode,
         "session_flags": flags,
     }
 

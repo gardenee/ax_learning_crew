@@ -205,8 +205,6 @@ export function SessionPage() {
     try {
       const request: AgentRunRequest = {
         session_id: sessionId,
-        mode: 'solo',
-        initiated_by_user_id: CURRENT_USER_ID,
         participant_ids: [CURRENT_USER_ID],
         session_flags: flags,
         ...extra,

@@ -14,21 +14,14 @@ from sqlalchemy import text
 from app.repositories._db import run_in_session
 
 
-def upsert_session(
-    session_id: UUID,
-    *,
-    title: str | None,
-    mode: str | None,
-    initiated_by_user_id: UUID | None,
-) -> None:
+def upsert_session(session_id: UUID, *, title: str | None) -> None:
     """세션을 생성하거나 title/updated_at을 갱신한다."""
     sql = text(
         """
-        INSERT INTO chat_sessions (id, title, mode, initiated_by_user_id, updated_at)
-        VALUES (:id, :title, :mode, :user_id, now())
+        INSERT INTO chat_sessions (id, title, updated_at)
+        VALUES (:id, :title, now())
         ON CONFLICT (id) DO UPDATE SET
           title = COALESCE(NULLIF(EXCLUDED.title, ''), chat_sessions.title),
-          mode  = COALESCE(EXCLUDED.mode, chat_sessions.mode),
           updated_at = now()
         """
     )
@@ -39,8 +32,6 @@ def upsert_session(
             {
                 "id": str(session_id),
                 "title": (title or "").strip() or None,
-                "mode": mode,
-                "user_id": str(initiated_by_user_id) if initiated_by_user_id else None,
             },
         )
         db.commit()
@@ -56,7 +47,7 @@ def list_sessions(limit: int = 30) -> list[dict[str, Any]]:
     """최근 업데이트된 세션부터 최대 limit 건을 반환한다."""
     sql = text(
         """
-        SELECT id, title, mode, updated_at, created_at
+        SELECT id, title, updated_at, created_at
         FROM chat_sessions
         WHERE title IS NOT NULL
         ORDER BY updated_at DESC
@@ -70,7 +61,6 @@ def list_sessions(limit: int = 30) -> list[dict[str, Any]]:
             {
                 "id": str(row["id"]),
                 "title": row["title"],
-                "mode": row["mode"],
                 "updated_at": _iso(row["updated_at"]),
                 "created_at": _iso(row["created_at"]),
             }

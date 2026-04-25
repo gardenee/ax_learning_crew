@@ -20,68 +20,16 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS groups (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('ad_hoc', 'project', 'team')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS group_members (
-  group_id UUID REFERENCES groups(id),
-  user_id UUID REFERENCES users(id),
-  role TEXT,
-  PRIMARY KEY (group_id, user_id)
-);
-
-CREATE TABLE IF NOT EXISTS projects (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  code TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  active BOOLEAN NOT NULL DEFAULT true
-);
-
--- === 선호 프로필 ===
-
-CREATE TABLE IF NOT EXISTS preference_profiles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  owner_type TEXT NOT NULL CHECK (owner_type IN ('user', 'group', 'project')),
-  owner_id UUID NOT NULL,
-  spice_tolerance TEXT,
-  budget_min INTEGER,
-  budget_max INTEGER,
-  max_walk_minutes INTEGER,
-  max_meal_minutes INTEGER,
-  notes TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (owner_type, owner_id)
-);
-
 -- === 온톨로지 ===
+-- concept 은 `update_user_memory` 호출 시 on-demand 로 INSERT 되는 키워드 노드.
+-- 모든 concept 은 'food' 타입 (매운 거 / 국물 / 해산물 같은 메뉴·음식 카테고리).
 
 CREATE TABLE IF NOT EXISTS concepts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   key TEXT NOT NULL UNIQUE,
   label_ko TEXT,
-  concept_type TEXT CHECK (concept_type IN ('food', 'context', 'constraint', 'mood', 'service')),
+  concept_type TEXT CHECK (concept_type IN ('food')),
   description TEXT
-);
-
-CREATE TABLE IF NOT EXISTS concept_aliases (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  concept_id UUID REFERENCES concepts(id),
-  alias TEXT NOT NULL,
-  locale TEXT DEFAULT 'ko'
-);
-
-CREATE TABLE IF NOT EXISTS concept_edges (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  source_concept_id UUID REFERENCES concepts(id),
-  target_concept_id UUID REFERENCES concepts(id),
-  relation_type TEXT CHECK (relation_type IN ('related_to', 'broader_than', 'good_for', 'opposite_of')),
-  weight NUMERIC DEFAULT 1.0
 );
 
 -- === 채팅 세션 / 메시지 ===
@@ -89,8 +37,6 @@ CREATE TABLE IF NOT EXISTS concept_edges (
 CREATE TABLE IF NOT EXISTS chat_sessions (
   id UUID PRIMARY KEY,
   title TEXT,
-  mode TEXT,
-  initiated_by_user_id UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -113,37 +59,13 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session
   ON chat_messages (session_id, turn_index ASC);
 
--- === 이벤트 ===
+-- === 피드백 이벤트 ===
 -- restaurant_* 는 Qdrant payload 의 place_id (TEXT) 를 가리키며 FK 없음.
--- restaurant_name 은 UI 표시·디버깅용 스냅샷 (Qdrant 왕복 없이 이름 보이게).
-
-CREATE TABLE IF NOT EXISTS recommendation_runs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  initiated_by_user_id UUID REFERENCES users(id),
-  mode TEXT,
-  group_id UUID,
-  input_snapshot JSONB,
-  derived_context JSONB,
-  chosen_restaurant_place_id TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS meal_events (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  actor_user_id UUID REFERENCES users(id),
-  group_id UUID,
-  restaurant_place_id TEXT,
-  restaurant_name TEXT,
-  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  meal_kind TEXT DEFAULT 'lunch',
-  context_snapshot JSONB
-);
 
 CREATE TABLE IF NOT EXISTS feedback_events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  recommendation_run_id UUID REFERENCES recommendation_runs(id),
   candidate_restaurant_place_id TEXT,
-  verdict TEXT CHECK (verdict IN ('selected', 'liked', 'disliked', 'visited')),
+  verdict TEXT CHECK (verdict IN ('liked', 'disliked', 'visited')),
   reason_tags TEXT[],
   free_text TEXT,
   created_by_user_id UUID REFERENCES users(id),
@@ -155,15 +77,15 @@ CREATE TABLE IF NOT EXISTS feedback_events (
 
 CREATE TABLE IF NOT EXISTS preference_signals (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  owner_type TEXT NOT NULL,
-  owner_id UUID NOT NULL,
-  signal_type TEXT CHECK (signal_type IN ('likes', 'dislikes', 'avoids', 'prefers_context')),
+  owner_id UUID NOT NULL REFERENCES users(id),
+  signal_type TEXT CHECK (signal_type IN ('likes', 'dislikes')),
   concept_id UUID REFERENCES concepts(id),
   target_restaurant_place_id TEXT,
   target_restaurant_name TEXT,
+  -- weight: 같은 식당 버튼을 반복 클릭하면 +1.0 씩 누적 (cap 5.0).
+  --         세션 6 의 reinforcement 신호. concept 선호는 기본값 1.0 유지.
   weight NUMERIC DEFAULT 1.0,
   source TEXT DEFAULT 'manual',
-  confidence NUMERIC DEFAULT 1.0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT preference_signals_target_chk
@@ -171,11 +93,11 @@ CREATE TABLE IF NOT EXISTS preference_signals (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS preference_signals_user_concept_uq
-  ON preference_signals (owner_type, owner_id, signal_type, concept_id)
+  ON preference_signals (owner_id, signal_type, concept_id)
   WHERE concept_id IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS preference_signals_user_restaurant_uq
-  ON preference_signals (owner_type, owner_id, signal_type, target_restaurant_place_id)
+  ON preference_signals (owner_id, signal_type, target_restaurant_place_id)
   WHERE target_restaurant_place_id IS NOT NULL;
 
 INSERT INTO schema_migrations (version) VALUES ('001_init')

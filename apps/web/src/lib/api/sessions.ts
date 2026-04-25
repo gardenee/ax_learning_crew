@@ -4,7 +4,6 @@ import { fetchJson } from './http';
 export type ChatSessionSummary = {
   id: string;
   title: string;
-  mode: string | null;
   created_at: string;
   updated_at: string;
 };

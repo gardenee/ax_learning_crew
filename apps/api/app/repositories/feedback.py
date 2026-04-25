@@ -62,8 +62,7 @@ def delete_restaurant_preference(
         text(
             """
             DELETE FROM preference_signals
-            WHERE owner_type = 'user'
-              AND owner_id = :uid
+            WHERE owner_id = :uid
               AND signal_type = :st
               AND target_restaurant_place_id = :pid
             """
@@ -127,8 +126,7 @@ def upsert_restaurant_preference(
         text(
             """
             DELETE FROM preference_signals
-            WHERE owner_type = 'user'
-              AND owner_id = :uid
+            WHERE owner_id = :uid
               AND signal_type = :st
               AND target_restaurant_place_id = :pid
             RETURNING id
@@ -142,8 +140,7 @@ def upsert_restaurant_preference(
         text(
             """
             SELECT id, weight FROM preference_signals
-            WHERE owner_type = 'user'
-              AND owner_id = :uid
+            WHERE owner_id = :uid
               AND signal_type = :st
               AND target_restaurant_place_id = :pid
             LIMIT 1
@@ -179,11 +176,11 @@ def upsert_restaurant_preference(
         text(
             """
             INSERT INTO preference_signals
-              (owner_type, owner_id, signal_type,
+              (owner_id, signal_type,
                target_restaurant_place_id, target_restaurant_name,
                source, weight)
             VALUES
-              ('user', :uid, :st, :pid, :rname, 'feedback_button', 1.0)
+              (:uid, :st, :pid, :rname, 'feedback_button', 1.0)
             """
         ),
         {
